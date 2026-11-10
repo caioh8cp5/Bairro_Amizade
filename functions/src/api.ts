@@ -8,6 +8,7 @@
  *   POST   /invites             -> (admin) gera convite para um morador
  *   DELETE /invites/:code       -> (admin) cancela convite não usado
  *   PATCH  /residents/:uid      -> (admin) ativa/bloqueia morador ou muda papel
+ *   DELETE /me                  -> morador exclui a própria conta e seus dados (LGPD / Google Play)
  */
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
@@ -47,23 +48,31 @@ function str(v: unknown, field: string, min: number, max: number): string {
   return v.trim();
 }
 
-/** Valida o ID token do Firebase e exige um administrador ativo. */
-async function requireAdmin(req: AuthedRequest, _res: Response, next: NextFunction) {
-  try {
-    const header = req.headers.authorization ?? '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (!token) throw new HttpError(401, 'Não autenticado.');
-    const decoded = await getAuth().verifyIdToken(token, true);
-    const snap = await db().doc(`residents/${decoded.uid}`).get();
-    if (!snap.exists || snap.get('active') !== true || snap.get('role') !== 'admin') {
-      throw new HttpError(403, 'Acesso restrito à administração.');
+/** Versão da Política de Privacidade aceita no cadastro (LGPD). */
+export const TERMS_VERSION = '2026-11';
+
+/** Valida o ID token do Firebase. Com adminOnly, exige também um administrador ativo. */
+const authenticate =
+  (adminOnly: boolean) => async (req: AuthedRequest, _res: Response, next: NextFunction) => {
+    try {
+      const header = req.headers.authorization ?? '';
+      const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+      if (!token) throw new HttpError(401, 'Não autenticado.');
+      const decoded = await getAuth().verifyIdToken(token, true);
+      if (adminOnly) {
+        const snap = await db().doc(`residents/${decoded.uid}`).get();
+        if (!snap.exists || snap.get('active') !== true || snap.get('role') !== 'admin') {
+          throw new HttpError(403, 'Acesso restrito à administração.');
+        }
+      }
+      req.uid = decoded.uid;
+      next();
+    } catch (e) {
+      next(e instanceof HttpError ? e : new HttpError(401, 'Sessão inválida.'));
     }
-    req.uid = decoded.uid;
-    next();
-  } catch (e) {
-    next(e instanceof HttpError ? e : new HttpError(401, 'Sessão inválida.'));
-  }
-}
+  };
+const requireUser = authenticate(false);
+const requireAdmin = authenticate(true);
 
 const wrap =
   (fn: (req: AuthedRequest, res: Response) => Promise<unknown>) =>
@@ -82,8 +91,14 @@ app.post(
   '/register',
   wrap(async (req, res) => {
     const code = normalizeCode(String(req.body?.code ?? ''));
+    // Nome e endereço são preenchidos pelo próprio morador no primeiro acesso
+    const name = str(req.body?.name, 'nome', 2, 80);
+    const unit = str(req.body?.unit, 'endereço', 2, 80);
     const email = str(req.body?.email, 'email', 5, 120).toLowerCase();
     const password = str(req.body?.password, 'senha', 6, 100);
+    if (req.body?.acceptedTerms !== true) {
+      throw new HttpError(400, 'É preciso aceitar a Política de Privacidade para criar a conta.');
+    }
     if (!code) throw new HttpError(400, 'Código de convite inválido.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'E-mail inválido.');
 
@@ -95,12 +110,12 @@ app.post(
       const data = snap.data()!;
       if (data.used || data.claimed) throw new HttpError(409, 'Este convite já foi utilizado.');
       tx.update(inviteRef, { claimed: true });
-      return data as { name: string; unit: string; role: Role };
+      return data as { role: Role };
     });
 
     let uid: string;
     try {
-      const user = await getAuth().createUser({ email, password, displayName: invite.name });
+      const user = await getAuth().createUser({ email, password, displayName: name });
       uid = user.uid;
     } catch (e: unknown) {
       await inviteRef.update({ claimed: false });
@@ -112,16 +127,19 @@ app.post(
 
     const batch = db().batch();
     batch.set(db().doc(`residents/${uid}`), {
-      name: invite.name,
-      unit: invite.unit,
+      name,
+      unit,
       email,
       phone: '',
       role: invite.role === 'admin' ? 'admin' : 'resident',
       active: true,
       inviteCode: code,
+      pushToken: null,
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
     });
-    batch.update(inviteRef, { used: true, usedBy: uid, usedAt: FieldValue.serverTimestamp() });
+    batch.update(inviteRef, { used: true, usedBy: uid, usedByName: name, usedAt: FieldValue.serverTimestamp() });
     await batch.commit();
 
     res.status(201).json({ ok: true });
@@ -136,8 +154,7 @@ app.get(
     res.json(
       snap.docs.map((d) => ({
         code: d.id,
-        name: d.get('name'),
-        unit: d.get('unit'),
+        note: d.get('note') ?? '',
         role: d.get('role'),
         used: d.get('used') === true,
         createdAt: d.get('createdAt')?.toMillis?.() ?? null,
@@ -150,16 +167,15 @@ app.post(
   '/invites',
   requireAdmin,
   wrap(async (req, res) => {
-    const name = str(req.body?.name, 'nome', 2, 80);
-    const unit = str(req.body?.unit, 'endereço/lote', 1, 80);
+    // Observação opcional só para a diretoria lembrar para quem enviou (ex.: "vizinho da casa 12")
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 80) : '';
     const role: Role = req.body?.role === 'admin' ? 'admin' : 'resident';
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = newInviteCode();
       try {
         await db().doc(`invites/${code}`).create({
-          name,
-          unit,
+          note,
           role,
           used: false,
           claimed: false,
@@ -212,6 +228,51 @@ app.patch(
     } else if (update.active === true) {
       await getAuth().updateUser(uid, { disabled: false });
     }
+    res.json({ ok: true });
+  }),
+);
+
+/**
+ * Exclusão da própria conta (exigência do Google Play e direito do titular na LGPD).
+ * Apaga o perfil, o login, os itens do mural (com fotos), votos e presenças.
+ * Sugestões e comunicados continuam visíveis, mas sem o nome do autor.
+ */
+app.delete(
+  '/me',
+  requireUser,
+  wrap(async (req, res) => {
+    const uid = req.uid!;
+    const meRef = db().doc(`residents/${uid}`);
+    const me = await meRef.get();
+
+    if (me.exists && me.get('role') === 'admin' && me.get('active') === true) {
+      const admins = await db()
+        .collection('residents')
+        .where('role', '==', 'admin')
+        .where('active', '==', true)
+        .get();
+      if (admins.size <= 1) {
+        throw new HttpError(409, 'Você é o único administrador. Torne outro morador administrador antes de excluir a conta.');
+      }
+    }
+
+    const writer = db().bulkWriter();
+    const [lost, sugs, mine, meetings, anns] = await Promise.all([
+      db().collection('lostFound').where('authorId', '==', uid).get(),
+      db().collection('suggestions').select().get(),
+      db().collection('suggestions').where('authorId', '==', uid).get(),
+      db().collection('meetings').select().get(),
+      db().collection('announcements').where('authorId', '==', uid).get(),
+    ]);
+    lost.docs.forEach((d) => writer.delete(d.ref)); // a foto é apagada pelo gatilho cleanupLostFound
+    sugs.docs.forEach((d) => writer.delete(d.ref.collection('votes').doc(uid)));
+    meetings.docs.forEach((d) => writer.delete(d.ref.collection('rsvps').doc(uid)));
+    mine.docs.forEach((d) => writer.update(d.ref, { authorName: 'Ex-morador', authorId: '' }));
+    anns.docs.forEach((d) => writer.update(d.ref, { authorName: 'Diretoria', authorId: '' }));
+    if (me.exists) writer.delete(meRef);
+    await writer.close();
+
+    await getAuth().deleteUser(uid);
     res.json({ ok: true });
   }),
 );

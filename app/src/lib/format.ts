@@ -14,16 +14,6 @@ export function weekday(ts: Timestamp): string {
   return WEEKDAYS[ts.toDate().getDay()];
 }
 
-/** Converte "25/12/2026" + "19:30" em Date (ou null se inválido). */
-export function parseDateTime(date: string, time: string): Date | null {
-  const dm = date.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  const tm = time.trim().match(/^(\d{1,2})[:h](\d{2})$/);
-  if (!dm || !tm) return null;
-  const d = new Date(+dm[3], +dm[2] - 1, +dm[1], +tm[1], +tm[2]);
-  if (d.getDate() !== +dm[1] || d.getMonth() !== +dm[2] - 1 || +tm[1] > 23 || +tm[2] > 59) return null;
-  return d;
-}
-
 export function normalize(text: string): string {
   return text
     .normalize('NFD')

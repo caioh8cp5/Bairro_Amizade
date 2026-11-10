@@ -16,7 +16,7 @@ export default function IdeiaDetalhe() {
   const item = useLiveDoc<Suggestion>(() => doc(db, 'suggestions', id), [id]);
 
   if (item === undefined) return <Loading />;
-  if (item === null) return <Empty icon="💡" text="Sugestão removida." />;
+  if (item === null) return <Empty icon="bulb-outline"text="Sugestão removida." />;
 
   const isAdmin = me.role === 'admin';
   const canDelete = isAdmin || item.authorId === me.id;

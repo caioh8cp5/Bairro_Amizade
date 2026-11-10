@@ -10,6 +10,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import { app } from './api';
 import { buildKeywords } from './keywords';
+import { formatMeetingDate, notifyResidents, short } from './push';
 
 initializeApp();
 // São Paulo: menor latência para Jaraguá do Sul (RNF02)
@@ -33,6 +34,31 @@ export const onRsvpCreated = onDocumentCreated('meetings/{id}/rsvps/{uid}', (e) 
 export const onRsvpDeleted = onDocumentDeleted('meetings/{id}/rsvps/{uid}', (e) =>
   db().doc(`meetings/${e.params.id}`).update({ goingCount: FieldValue.increment(-1) }).catch(() => null),
 );
+
+/** Notificação push quando a diretoria publica um comunicado. */
+export const onAnnouncementCreated = onDocumentCreated('announcements/{id}', async (e) => {
+  const d = e.data?.data();
+  if (!d) return;
+  await notifyResidents({
+    title: d.urgent ? `URGENTE: ${d.title}` : `Novo comunicado: ${d.title}`,
+    body: short(String(d.body ?? '')),
+    url: '/',
+    exceptUid: d.authorId,
+  });
+});
+
+/** Notificação push quando uma reunião é marcada. */
+export const onMeetingCreated = onDocumentCreated('meetings/{id}', async (e) => {
+  const d = e.data?.data();
+  if (!d) return;
+  const when = d.date?.toDate ? formatMeetingDate(d.date.toDate()) : '';
+  await notifyResidents({
+    title: `Reunião marcada: ${d.title}`,
+    body: [when, d.location].filter(Boolean).join(' · '),
+    url: `/reuniao/${e.params.id}`,
+    exceptUid: d.authorId,
+  });
+});
 
 /** Indexação para a busca do mural de Achados e Perdidos (seção 3.2 do TCC). */
 export const indexLostFound = onDocumentWritten('lostFound/{id}', async (e) => {

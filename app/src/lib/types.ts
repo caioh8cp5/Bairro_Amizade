@@ -32,13 +32,13 @@ export type Meeting = {
 };
 
 export type Category = 'chaves' | 'documentos' | 'animais' | 'eletronicos' | 'outros';
-export const CATEGORIES: { key: Category; label: string; icon: string }[] = [
-  { key: 'chaves', label: 'Chaves', icon: '🔑' },
-  { key: 'documentos', label: 'Documentos', icon: '🪪' },
-  { key: 'animais', label: 'Animais', icon: '🐾' },
-  { key: 'eletronicos', label: 'Eletrônicos', icon: '📱' },
-  { key: 'outros', label: 'Outros', icon: '📦' },
-];
+export const CATEGORIES = [
+  { key: 'chaves', label: 'Chaves', icon: 'key-outline' },
+  { key: 'documentos', label: 'Documentos', icon: 'card-outline' },
+  { key: 'animais', label: 'Animais', icon: 'paw-outline' },
+  { key: 'eletronicos', label: 'Eletrônicos', icon: 'phone-portrait-outline' },
+  { key: 'outros', label: 'Outros', icon: 'cube-outline' },
+] as const satisfies readonly { key: Category; label: string; icon: string }[];
 
 export type LostItem = {
   id: string;

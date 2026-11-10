@@ -2,6 +2,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { auth, db } from './firebase';
+import { unregisterPush } from './notifications';
 import type { Resident } from './types';
 
 /**
@@ -58,4 +59,8 @@ export function useResident(): Resident {
   return state.resident;
 }
 
-export const logout = () => signOut(auth);
+export async function logout() {
+  const uid = auth.currentUser?.uid;
+  if (uid) await unregisterPush(uid);
+  await signOut(auth);
+}

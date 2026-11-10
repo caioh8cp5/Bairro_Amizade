@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { errorMessage, formatDate } from '@/lib/format';
 import { useLiveDoc } from '@/lib/hooks';
 import { CATEGORIES, LostItem } from '@/lib/types';
-import { Badge, Body, Button, Card, Empty, Loading, s, Screen, Title } from '@/ui/components';
+import { Badge, Body, Button, Card, Empty, IconText, Loading, s, Screen, Title } from '@/ui/components';
 import { colors, space } from '@/ui/theme';
 
 export default function AchadoDetalhe() {
@@ -16,7 +16,7 @@ export default function AchadoDetalhe() {
   const item = useLiveDoc<LostItem>(() => doc(db, 'lostFound', id), [id]);
 
   if (item === undefined) return <Loading />;
-  if (item === null) return <Empty icon="🧺" text="Este item foi removido." />;
+  if (item === null) return <Empty icon="file-tray-outline" text="Este item foi removido." />;
 
   const canEdit = item.authorId === me.id || me.role === 'admin';
   const cat = CATEGORIES.find((c) => c.key === item.category);
@@ -55,7 +55,7 @@ export default function AchadoDetalhe() {
         />
       )}
       {devolvido ? (
-        <Badge label="✅ JÁ DEVOLVIDO" color={colors.success} bg={colors.successLight} />
+        <Badge label="JÁ DEVOLVIDO" icon="checkmark-circle" color={colors.success} bg={colors.successLight} />
       ) : (
         <Badge
           label={item.kind === 'encontrado' ? 'OBJETO ENCONTRADO' : 'OBJETO PERDIDO'}
@@ -64,9 +64,7 @@ export default function AchadoDetalhe() {
         />
       )}
       <Title>{item.title}</Title>
-      <Body muted>
-        {cat?.icon} {cat?.label} · publicado em {formatDate(item.createdAt)}
-      </Body>
+      <IconText icon={cat?.icon ?? 'cube-outline'}>{`${cat?.label} · publicado em ${formatDate(item.createdAt)}`}</IconText>
       {!!item.description && (
         <Card style={{ marginTop: space(2) }}>
           <Body>{item.description}</Body>

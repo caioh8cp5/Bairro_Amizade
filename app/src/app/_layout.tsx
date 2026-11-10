@@ -1,8 +1,12 @@
-import { Stack } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import { Href, router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { View } from 'react-native';
 import { AuthProvider, logout, useAuth } from '@/lib/auth';
 import { firebaseConfigured } from '@/lib/firebase';
+import { pushSupported, registerForPush } from '@/lib/notifications';
 import { Body, Button, Loading, s, Title } from '@/ui/components';
 import { colors, font } from '@/ui/theme';
 
@@ -21,7 +25,7 @@ function Gate() {
   if (state.status === 'blocked') {
     return (
       <View style={[s.center, { backgroundColor: colors.bg }]}>
-        <Text style={{ fontSize: 56 }}>🔒</Text>
+        <Ionicons name="lock-closed" size={56} color={colors.primary} style={{ marginBottom: 12 }} />
         <Title>Acesso não liberado</Title>
         <Body muted style={{ textAlign: 'center', marginBottom: 24 }}>
           Sua conta não está na lista de moradores autorizados ou foi bloqueada. Procure a diretoria da Associação de
@@ -64,14 +68,38 @@ function Gate() {
           <Stack.Screen name="admin/convite-novo" options={{ title: 'Novo convite', presentation: 'modal' }} />
         </Stack.Protected>
       </Stack.Protected>
+
+      <Stack.Screen name="privacidade" options={{ title: 'Privacidade' }} />
     </Stack>
   );
+}
+
+/** Registra o aparelho para push e abre a tela certa ao tocar numa notificação. */
+function PushSetup() {
+  const state = useAuth();
+  const uid = state.status === 'ready' ? state.user.uid : null;
+
+  useEffect(() => {
+    if (uid) registerForPush(uid).catch((e) => console.warn('Push não registrado', e));
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid || !pushSupported) return;
+    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const url = resp.notification.request.content.data?.url;
+      if (typeof url === 'string') router.push(url as Href);
+    });
+    return () => sub.remove();
+  }, [uid]);
+
+  return null;
 }
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <StatusBar style="light" />
+      <PushSetup />
       <Gate />
     </AuthProvider>
   );

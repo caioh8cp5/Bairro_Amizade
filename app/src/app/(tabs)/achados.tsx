@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -12,7 +13,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { db } from '@/lib/firebase';
 import { errorMessage, formatDate, normalize } from '@/lib/format';
 import { CATEGORIES, Category, LostItem } from '@/lib/types';
@@ -35,6 +36,7 @@ export default function Achados() {
   const cursor = useRef<QueryDocumentSnapshot | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 
@@ -68,7 +70,10 @@ export default function Achados() {
       } catch (e) {
         if (id === requestId.current) setError(errorMessage(e));
       } finally {
-        if (id === requestId.current) setLoading(false);
+        if (id === requestId.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [category, term],
@@ -86,26 +91,47 @@ export default function Achados() {
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load(true);
+            }}
+            colors={[colors.primary]}
+          />
+        }
         contentContainerStyle={[s.screen, { paddingBottom: 100 }]}
         onEndReachedThreshold={0.4}
         onEndReached={() => hasMore && !loading && items.length > 0 && load(false)}
         ListHeaderComponent={
           <>
-            <TextInput
-              style={[s.input, { marginBottom: space(1.5) }]}
-              placeholder="🔍 Buscar (ex.: chave, carteira, gato)"
-              placeholderTextColor={colors.muted}
-              value={search}
-              onChangeText={setSearch}
-              accessibilityLabel="Buscar itens"
-              returnKeyType="search"
-            />
+            <View
+              style={[
+                s.input,
+                { flexDirection: 'row', alignItems: 'center', paddingVertical: 0, marginBottom: space(1.5) },
+              ]}>
+              <Ionicons name="search" size={22} color={colors.muted} />
+              <TextInput
+                style={{ flex: 1, fontSize: font.body, color: colors.text, paddingVertical: space(1.5), marginLeft: space(1) }}
+                placeholder="Buscar (ex.: chave, carteira, gato)"
+                placeholderTextColor={colors.muted}
+                value={search}
+                onChangeText={setSearch}
+                accessibilityLabel="Buscar itens"
+                returnKeyType="search"
+              />
+              {!!search && (
+                <Ionicons name="close-circle" size={22} color={colors.muted} onPress={() => setSearch('')} accessibilityLabel="Limpar busca" />
+              )}
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: space(1) }}>
               <Chip label="Todos" selected={!category} onPress={() => setCategory(null)} />
               {CATEGORIES.map((c) => (
                 <Chip
                   key={c.key}
-                  label={`${c.icon} ${c.label}`}
+                  label={c.label}
+                  icon={c.icon}
                   selected={category === c.key}
                   onPress={() => setCategory(c.key)}
                 />
@@ -116,14 +142,14 @@ export default function Achados() {
         }
         ListEmptyComponent={
           loading ? undefined : (
-            <Empty icon="🧺" text={term || category ? 'Nada encontrado com esse filtro.' : 'Nenhum item cadastrado.'} />
+            <Empty icon="file-tray-outline" text={term || category ? 'Nada encontrado com esse filtro.' : 'Nenhum item cadastrado.'} />
           )
         }
         ListFooterComponent={loading ? <ActivityIndicator color={colors.primary} style={{ margin: space(2) }} /> : undefined}
         renderItem={({ item }) => <ItemCard item={item} />}
       />
       <View style={s.fab}>
-        <Button label="+ Cadastrar item" onPress={() => router.push('/achado-novo')} />
+        <Button label="Cadastrar item" icon="add-circle-outline" onPress={() => router.push('/achado-novo')} />
       </View>
     </View>
   );
@@ -148,7 +174,7 @@ function ItemCard({ item }: { item: LostItem }) {
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-          <Text style={{ fontSize: 36 }}>{cat?.icon}</Text>
+          <Ionicons name={cat?.icon ?? 'cube-outline'} size={38} color={colors.primary} />
         </View>
       )}
       <View style={{ flex: 1 }}>

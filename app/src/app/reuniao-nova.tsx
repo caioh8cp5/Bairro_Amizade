@@ -1,26 +1,31 @@
 import { router } from 'expo-router';
 import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
-import { View } from 'react-native';
 import { useResident } from '@/lib/auth';
 import { db } from '@/lib/firebase';
-import { errorMessage, parseDateTime } from '@/lib/format';
+import { errorMessage } from '@/lib/format';
 import { Button, ErrorBox, Field, Screen } from '@/ui/components';
-import { space } from '@/ui/theme';
+import { DateTimeField } from '@/ui/date-time-field';
+
+/** Próximo dia às 19h30 como sugestão inicial. */
+function defaultDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(19, 30, 0, 0);
+  return d;
+}
 
 export default function NovaReuniao() {
   const me = useResident();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('19:30');
+  const [when, setWhen] = useState(defaultDate);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function salvar() {
-    const when = parseDateTime(date, time);
-    if (!when) return setError('Data ou horário inválidos. Use DD/MM/AAAA e HH:MM.');
+    if (when.getTime() < Date.now()) return setError('Escolha uma data e horário no futuro.');
     setLoading(true);
     setError(null);
     try {
@@ -46,17 +51,16 @@ export default function NovaReuniao() {
     <Screen>
       <ErrorBox text={error} />
       <Field label="Assunto" placeholder="Assembleia geral" value={title} onChangeText={setTitle} maxLength={120} />
-      <View style={{ flexDirection: 'row', gap: space(1.5) }}>
-        <View style={{ flex: 3 }}>
-          <Field label="Data" placeholder="DD/MM/AAAA" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
-        </View>
-        <View style={{ flex: 2 }}>
-          <Field label="Horário" placeholder="19:30" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
-        </View>
-      </View>
+      <DateTimeField label="Data e horário" value={when} onChange={setWhen} />
       <Field label="Local" placeholder="Salão da associação" value={location} onChangeText={setLocation} maxLength={120} />
       <Field label="Pauta / descrição" value={description} onChangeText={setDescription} multiline maxLength={3000} />
-      <Button label="Marcar reunião" onPress={salvar} loading={loading} disabled={title.trim().length < 3 || !date} />
+      <Button
+        label="Marcar reunião"
+        icon="calendar-outline"
+        onPress={salvar}
+        loading={loading}
+        disabled={title.trim().length < 3}
+      />
     </Screen>
   );
 }

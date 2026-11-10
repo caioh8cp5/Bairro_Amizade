@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import { Alert, Pressable, Text } from 'react-native';
@@ -56,7 +57,7 @@ export function VoteButton({ suggestion, large }: { suggestion: Suggestion; larg
         justifyContent: 'center',
         opacity: pressed || busy ? 0.7 : 1,
       })}>
-      <Text style={{ fontSize: large ? 22 : 18, color: voted ? '#fff' : colors.primary }}>▲</Text>
+      <Ionicons name={voted ? 'thumbs-up' : 'thumbs-up-outline'} size={large ? 26 : 22} color={voted ? '#fff' : colors.primary} />
       <Text style={{ fontSize: large ? 22 : 18, fontWeight: '800', color: voted ? '#fff' : colors.primary }}>
         {suggestion.voteCount ?? 0}
       </Text>
