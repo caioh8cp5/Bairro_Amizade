@@ -1,8 +1,39 @@
-# App da Associação de Moradores do Champs Élysées
+# Plataforma Digital para Integração e Governança Comunitária: O Caso do Bairro Amizade
 
-Aplicativo comunitário privado (TCC — PAC VII/VIII, Católica SC) para os moradores do loteamento Champs Élysées, Bairro Amizade, Jaraguá do Sul/SC.
+## Sobre o Projeto
+Este projeto consiste em uma proposta de plataforma digital modular focada na centralização da gestão, comunicação e segurança para os moradores do **Bairro Amizade**, localizado em Jaraguá do Sul - SC. 
 
-## Estrutura
+Diferente de soluções genéricas de mercado, o sistema foca em um ambiente estritamente privado, mitigando os problemas de perda de avisos importantes e exposição de dados residenciais associados ao uso de grupos de mensagens comuns (como WhatsApp) ou redes baseadas puramente em GPS (como Nextdoor).
+
+---
+
+## Funcionalidades Principais (Módulos)
+*   **Módulo de Controle de Acesso (Whitelist):** Autenticação estrita baseada em uma lista de permissões pré-aprovada pela associação de moradores, impedindo acessos externos.
+*   **Mural de Comunicados:** Espaço controlado e unidirecional para publicações oficiais urgentes por parte da administração.
+*   **Agenda de Reuniões:** Calendário digital interativo para marcação de assembleias com confirmação de presença em tempo real.
+*   **Seção de Achados e Perdidos:** Painel público interno para cadastro, categorização e busca indexada de itens perdidos na região.
+*   **Fórum de Sugestões e Ideias:** Ouvidoria digitalizada para o envio de propostas de melhorias urbanas com sistema de votação unitária por morador.
+
+---
+
+## Arquitetura e Tecnologias
+O projeto adota uma arquitetura Cliente-Servidor dividida de forma modular:
+
+*   **Frontend (Interface):** Desenvolvido em **TypeScript** com **React Native (Expo)**, priorizando componentes leves, excelente desempenho em dispositivos móveis e foco em acessibilidade para todas as faixas etárias.
+*   **Backend (API):** Estruturado em **Node.js** com o framework **Express** (hospedado em Cloud Functions) para gerenciamento seguro das rotas e requisições.
+*   **Persistência e Infraestrutura (Serverless):**
+    *   **Cloud Firestore (NoSQL):** Armazenamento de dados estruturados (perfis, atas, votações e histórico).
+    *   **Firebase Cloud Storage:** Armazenamento de mídias físicas (fotos do mural de achados e perdidos), otimizando o consumo de banda.
+    *   **Firebase Security Rules:** Camada nativa de segurança que valida se o ID do usuário está ativo na *whitelist* diretamente no servidor antes de liberar qualquer dado.
+
+---
+
+## Metodologia de Desenvolvimento
+O desenvolvimento do portfólio segue as práticas do framework **Scrum**, utilizando iterações e ciclos incrementais (Sprints) de duas semanas. A modelagem do sistema é guiada por Engenharia de Software com diagramas UML de Casos de Uso e Diagramas de Classes para a validação das regras de negócio.
+
+---
+
+## Estrutura do código
 
 ```
 Bairro_Amizade/
@@ -32,9 +63,7 @@ Bairro_Amizade/
 4. A API (`POST /register`) valida o código numa transação (uso único), cria a conta e o perfil em `residents/{uid}` com `active: true`.
 5. As **Firebase Security Rules** só liberam leitura/escrita se `residents/{uid}` existir com `active == true`. Se o admin bloquear o morador, a API desativa a conta e derruba a sessão.
 
-## Configuração do Firebase (passo a passo, você faz uma vez)
-
-> Eu não consigo criar o projeto por você: ele fica na **sua** conta Google.
+## Configuração do Firebase (feita uma vez)
 
 1. Acesse https://console.firebase.google.com e clique em **Criar projeto** (ex.: `champs-elysees`). Pode desativar o Google Analytics.
 2. **Plano Blaze**: no canto inferior esquerdo, *Upgrade* → Blaze. Depois, no Google Cloud Console → *Faturamento → Orçamentos e alertas*, crie um alerta (ex.: R$ 10). Para o uso de um bairro, o consumo deve ficar dentro da cota gratuita.
@@ -46,23 +75,10 @@ Bairro_Amizade/
 
 ### Publicar regras, índices e a API
 
-Instale e faça login no Firebase CLI (abre o navegador para você entrar):
-
 ```bash
 npm install -g firebase-tools
-```
-
-```bash
 firebase login
-```
-
-Na pasta `Bairro_Amizade`:
-
-```bash
 firebase use --add
-```
-
-```bash
 firebase deploy
 ```
 
@@ -108,3 +124,6 @@ Instale o **Expo Go** no Android e leia o QR code. (Se algum recurso nativo não
 | RNF02 – resposta < 2 s | Firestore em tempo real, região São Paulo |
 | RNF03 – acessibilidade | `ui/theme.ts` (fonte 18+, alto contraste, botões 56px, rótulos de acessibilidade) |
 | Seção 3.2 – busca indexada + paginação | `(tabs)/achados.tsx` + `functions/src/keywords.ts` |
+
+---
+*Trabalho individual desenvolvido como requisito para a avaliação N3 (2026/1) - Engenharia de Software.*
