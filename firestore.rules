@@ -1,0 +1,125 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore — Associação de Moradores do Champs Élysées.
+// Toda leitura/escrita exige que o usuário autenticado exista na coleção
+// "residents" (a whitelist) com active == true. Cadastro de moradores e
+// convites só acontece pela API (Cloud Functions + Express), nunca pelo app.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function residentDoc() {
+      return get(/databases/$(database)/documents/residents/$(request.auth.uid)).data;
+    }
+    function isResident() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/residents/$(request.auth.uid))
+        && residentDoc().active == true;
+    }
+    function isAdmin() {
+      return isResident() && residentDoc().role == 'admin';
+    }
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+    function str(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+    function isAuthor() {
+      return request.resource.data.authorId == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // Whitelist: perfis dos moradores aprovados
+    match /residents/{uid} {
+      allow read: if isResident();
+      // o próprio morador só pode trocar nome e telefone
+      allow update: if isResident() && request.auth.uid == uid
+        && onlyChanged(['name', 'phone'])
+        && str(request.resource.data.name, 2, 80);
+      allow create, delete: if false; // somente via API
+    }
+
+    // Convites: somente a API (Admin SDK) acessa
+    match /invites/{code} {
+      allow read, write: if false;
+    }
+
+    // Mural de Comunicados — só administradores publicam
+    match /announcements/{id} {
+      allow read: if isResident();
+      allow create: if isAdmin() && isAuthor()
+        && request.resource.data.keys().hasOnly(['title', 'body', 'urgent', 'authorId', 'authorName', 'createdAt'])
+        && str(request.resource.data.title, 3, 120)
+        && str(request.resource.data.body, 1, 5000)
+        && request.resource.data.urgent is bool;
+      allow update: if isAdmin() && onlyChanged(['title', 'body', 'urgent']);
+      allow delete: if isAdmin();
+    }
+
+    // Agenda de Reuniões
+    match /meetings/{id} {
+      allow read: if isResident();
+      allow create: if isAdmin() && isAuthor()
+        && request.resource.data.keys().hasOnly(['title', 'description', 'location', 'date', 'minutes', 'goingCount', 'authorId', 'authorName', 'createdAt'])
+        && str(request.resource.data.title, 3, 120)
+        && request.resource.data.date is timestamp
+        && request.resource.data.goingCount == 0;
+      allow update: if isAdmin() && onlyChanged(['title', 'description', 'location', 'date', 'minutes']);
+      allow delete: if isAdmin();
+
+      // Confirmação de presença: um documento por morador (id = uid)
+      match /rsvps/{uid} {
+        allow read: if isResident();
+        allow create: if isResident() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'createdAt'])
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isResident() && request.auth.uid == uid;
+      }
+    }
+
+    // Achados e Perdidos
+    match /lostFound/{id} {
+      allow read: if isResident();
+      // "keywords" é gerado no servidor (Cloud Function), o app não envia
+      allow create: if isResident() && isAuthor()
+        && request.resource.data.keys().hasOnly(['title', 'description', 'category', 'kind', 'status', 'photoUrl', 'photoPath', 'authorId', 'authorName', 'createdAt'])
+        && str(request.resource.data.title, 3, 80)
+        && str(request.resource.data.description, 0, 500)
+        && request.resource.data.category in ['chaves', 'documentos', 'animais', 'eletronicos', 'outros']
+        && request.resource.data.kind in ['perdido', 'encontrado']
+        && request.resource.data.status == 'aberto';
+      allow update: if isResident()
+        && (resource.data.authorId == request.auth.uid || isAdmin())
+        && onlyChanged(['status'])
+        && request.resource.data.status in ['aberto', 'devolvido'];
+      allow delete: if isResident() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // Fórum de Sugestões e Ideias
+    match /suggestions/{id} {
+      allow read: if isResident();
+      allow create: if isResident() && isAuthor()
+        && request.resource.data.keys().hasOnly(['title', 'description', 'status', 'voteCount', 'authorId', 'authorName', 'createdAt'])
+        && str(request.resource.data.title, 3, 120)
+        && str(request.resource.data.description, 0, 2000)
+        && request.resource.data.status == 'aberta'
+        && request.resource.data.voteCount == 0;
+      // só a administração muda o status (aberta / em análise / aprovada / recusada)
+      allow update: if isAdmin() && onlyChanged(['status'])
+        && request.resource.data.status in ['aberta', 'em_analise', 'aprovada', 'recusada'];
+      allow delete: if isAdmin() || (isResident() && resource.data.authorId == request.auth.uid);
+
+      // Voto unitário: o id do documento é o uid, então cada morador vota uma vez
+      match /votes/{uid} {
+        allow read: if isResident();
+        allow create: if isResident() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isResident() && request.auth.uid == uid;
+      }
+    }
+  }
+}

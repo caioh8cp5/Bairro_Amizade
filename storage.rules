@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Fotos do mural de Achados e Perdidos.
+// Só moradores ativos na whitelist (coleção "residents" do Firestore) acessam.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isResident() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/residents/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/residents/$(request.auth.uid)).data.active == true;
+    }
+
+    match /lostFound/{uid}/{fileName} {
+      allow read: if isResident();
+      allow create: if isResident()
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isResident() && request.auth.uid == uid;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

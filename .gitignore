@@ -1,0 +1,21 @@
+# Dependências e builds
+node_modules/
+functions/lib/
+.expo/
+dist/
+web-build/
+
+# Segredos e configurações locais
+.env
+.env.*
+!.env.example
+*.local
+service-account*.json
+.firebase/
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
