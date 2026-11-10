@@ -76,14 +76,19 @@ export default function NovoAchado() {
       <ErrorBox text={error} />
       <Text style={s.label}>O que aconteceu?</Text>
       <View style={[s.row, { marginBottom: space(2) }]}>
-        <Chip label="Encontrei um objeto" selected={kind === 'encontrado'} onPress={() => setKind('encontrado')} />
-        <Chip label="Perdi um objeto" selected={kind === 'perdido'} onPress={() => setKind('perdido')} />
+        <Chip
+          label="Encontrei um objeto"
+          icon="hand-left-outline"
+          selected={kind === 'encontrado'}
+          onPress={() => setKind('encontrado')}
+        />
+        <Chip label="Perdi um objeto" icon="help-circle-outline" selected={kind === 'perdido'} onPress={() => setKind('perdido')} />
       </View>
 
       <Text style={s.label}>Categoria</Text>
       <View style={[s.row, { marginBottom: space(2) }]}>
         {CATEGORIES.map((c) => (
-          <Chip key={c.key} label={`${c.icon} ${c.label}`} selected={category === c.key} onPress={() => setCategory(c.key)} />
+          <Chip key={c.key} label={c.label} icon={c.icon} selected={category === c.key} onPress={() => setCategory(c.key)} />
         ))}
       </View>
 
@@ -105,13 +110,13 @@ export default function NovoAchado() {
         </Pressable>
       ) : (
         <View style={{ flexDirection: 'row', gap: space(1) }}>
-          <Button label="📷 Câmera" variant="secondary" onPress={() => escolherFoto(true)} style={{ flex: 1 }} />
-          <Button label="🖼️ Galeria" variant="secondary" onPress={() => escolherFoto(false)} style={{ flex: 1 }} />
+          <Button label="Câmera" icon="camera-outline" variant="secondary" onPress={() => escolherFoto(true)} style={{ flex: 1 }} />
+          <Button label="Galeria" icon="images-outline" variant="secondary" onPress={() => escolherFoto(false)} style={{ flex: 1 }} />
         </View>
       )}
 
       <View style={{ height: space(2) }} />
-      <Button label="Publicar no mural" onPress={salvar} loading={loading} disabled={title.trim().length < 3} />
+      <Button label="Publicar no mural" icon="send-outline" onPress={salvar} loading={loading} disabled={title.trim().length < 3} />
       <Text style={[s.meta, { color: colors.muted, textAlign: 'center' }]}>
         Visível apenas para moradores cadastrados.
       </Text>

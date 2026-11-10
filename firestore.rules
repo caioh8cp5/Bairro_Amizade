@@ -35,10 +35,13 @@ service cloud.firestore {
     // Whitelist: perfis dos moradores aprovados
     match /residents/{uid} {
       allow read: if isResident();
-      // o próprio morador só pode trocar nome e telefone
+      // o próprio morador só pode trocar nome, endereço, telefone e o token de notificação
       allow update: if isResident() && request.auth.uid == uid
-        && onlyChanged(['name', 'phone'])
-        && str(request.resource.data.name, 2, 80);
+        && onlyChanged(['name', 'unit', 'phone', 'pushToken'])
+        && str(request.resource.data.name, 2, 80)
+        && str(request.resource.data.unit, 2, 80)
+        && (request.resource.data.get('pushToken', null) == null
+            || str(request.resource.data.pushToken, 10, 200));
       allow create, delete: if false; // somente via API
     }
 

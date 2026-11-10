@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { ReactNode } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +14,28 @@ import {
   ViewStyle,
 } from 'react-native';
 import { colors, font, space } from './theme';
+
+export type IconName = keyof typeof Ionicons.glyphMap;
+
+/** Ícone com texto na mesma linha (ex.: endereço, local, e-mail). */
+export function IconText({
+  icon,
+  children,
+  color = colors.muted,
+  style,
+}: {
+  icon: IconName;
+  children: ReactNode;
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: space(1), marginTop: 2 }, style]}>
+      <Ionicons name={icon} size={20} color={color} />
+      <Text style={[s.body, { color, flexShrink: 1 }]}>{children}</Text>
+    </View>
+  );
+}
 
 export function Title({ children }: { children: ReactNode }) {
   return (
@@ -32,6 +56,7 @@ export function Button({
   loading,
   disabled,
   style,
+  icon,
 }: {
   label: string;
   onPress: () => void;
@@ -39,6 +64,7 @@ export function Button({
   loading?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  icon?: IconName;
 }) {
   const bg = {
     primary: colors.primary,
@@ -60,7 +86,14 @@ export function Button({
         variant === 'ghost' && { borderWidth: 2, borderColor: colors.primary },
         style,
       ]}>
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={[s.buttonText, { color: fg }]}>{label}</Text>}
+      {loading ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(1) }}>
+          {icon && <Ionicons name={icon} size={22} color={fg} />}
+          <Text style={[s.buttonText, { color: fg }]}>{label}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -104,11 +137,13 @@ export function Chip({
   selected,
   onPress,
   color = colors.primary,
+  icon,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   color?: string;
+  icon?: IconName;
 }) {
   return (
     <Pressable
@@ -116,24 +151,32 @@ export function Chip({
       accessibilityState={{ selected }}
       onPress={onPress}
       disabled={!onPress}
-      style={[s.chip, { borderColor: color, backgroundColor: selected ? color : '#fff' }]}>
+      style={[
+        s.chip,
+        { borderColor: color, backgroundColor: selected ? color : '#fff', flexDirection: 'row', alignItems: 'center' },
+      ]}>
+      {icon && <Ionicons name={icon} size={18} color={selected ? '#fff' : color} style={{ marginRight: 6 }} />}
       <Text style={[s.chipText, { color: selected ? '#fff' : color }]}>{label}</Text>
     </Pressable>
   );
 }
 
-export function Badge({ label, color, bg }: { label: string; color: string; bg: string }) {
+export function Badge({ label, color, bg, icon }: { label: string; color: string; bg: string; icon?: IconName }) {
   return (
-    <View style={[s.badge, { backgroundColor: bg }]}>
+    <View style={[s.badge, { backgroundColor: bg, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+      {icon && <Ionicons name={icon} size={14} color={color} />}
       <Text style={[s.badgeText, { color }]}>{label}</Text>
     </View>
   );
 }
 
 export function Screen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
-  if (!scroll) return <View style={s.screen}>{children}</View>;
+  // Mantém o conteúdo acima dos botões de navegação do Android
+  const { bottom } = useSafeAreaInsets();
+  const style = [s.screen, { paddingBottom: space(6) + bottom }];
+  if (!scroll) return <View style={style}>{children}</View>;
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.screen} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={style} keyboardShouldPersistTaps="handled">
       {children}
     </ScrollView>
   );
@@ -147,10 +190,10 @@ export function Loading() {
   );
 }
 
-export function Empty({ icon, text }: { icon: string; text: string }) {
+export function Empty({ icon, text }: { icon: IconName; text: string }) {
   return (
     <View style={[s.center, { paddingVertical: space(6) }]}>
-      <Text style={{ fontSize: 48 }}>{icon}</Text>
+      <Ionicons name={icon} size={56} color={colors.border} />
       <Body muted style={{ textAlign: 'center', marginTop: space(1) }}>
         {text}
       </Body>

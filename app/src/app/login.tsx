@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
@@ -42,7 +43,18 @@ export default function Login() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
         <View style={{ alignItems: 'center', marginTop: space(8), marginBottom: space(4) }}>
-          <Text style={{ fontSize: 64 }}>🏡</Text>
+          <View
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 48,
+              backgroundColor: colors.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: space(2),
+            }}>
+            <Ionicons name="home" size={52} color="#fff" />
+          </View>
           <Text
             accessibilityRole="header"
             style={{ fontSize: font.title + 2, fontWeight: '800', color: colors.primary, textAlign: 'center' }}>
@@ -63,14 +75,19 @@ export default function Login() {
           autoComplete="email"
         />
         <Field label="Senha" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" />
-        <Button label="Entrar" onPress={entrar} loading={loading} disabled={!email || !password} />
+        <Button label="Entrar" icon="log-in-outline" onPress={entrar} loading={loading} disabled={!email || !password} />
         <Button label="Esqueci minha senha" variant="ghost" onPress={esqueci} />
 
         <View style={{ marginTop: space(4) }}>
           <Body muted style={{ textAlign: 'center', marginBottom: space(1) }}>
             Recebeu um código de convite da associação?
           </Body>
-          <Button label="Primeiro acesso com convite" variant="secondary" onPress={() => router.push('/cadastro')} />
+          <Button
+            label="Primeiro acesso com convite"
+            icon="ticket-outline"
+            variant="secondary"
+            onPress={() => router.push('/cadastro')}
+          />
         </View>
       </Screen>
     </KeyboardAvoidingView>

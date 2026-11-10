@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { errorMessage, formatDate, weekday } from '@/lib/format';
 import { useLiveDoc } from '@/lib/hooks';
 import type { Meeting } from '@/lib/types';
-import { Body, Button, Card, Empty, Field, Loading, s, Screen, Title } from '@/ui/components';
+import { Body, Button, Card, Empty, Field, IconText, Loading, s, Screen, Title } from '@/ui/components';
 import { colors, space } from '@/ui/theme';
 
 export default function ReuniaoDetalhe() {
@@ -21,7 +21,7 @@ export default function ReuniaoDetalhe() {
   const [openedAt] = useState(() => Date.now());
 
   if (meeting === undefined) return <Loading />;
-  if (meeting === null) return <Empty icon="🗓️" text="Reunião não encontrada." />;
+  if (meeting === null) return <Empty icon="calendar-outline" text="Reunião não encontrada." />;
 
   const isPast = meeting.date.toDate().getTime() < openedAt - 3 * 3600 * 1000;
   const going = !!rsvp;
@@ -68,7 +68,11 @@ export default function ReuniaoDetalhe() {
         {weekday(meeting.date)}, {formatDate(meeting.date)}
       </Text>
       <Title>{meeting.title}</Title>
-      {!!meeting.location && <Body>📍 {meeting.location}</Body>}
+      {!!meeting.location && (
+        <IconText icon="location-outline" color={colors.text}>
+          {meeting.location}
+        </IconText>
+      )}
       {!!meeting.description && (
         <Card style={{ marginTop: space(2) }}>
           <Text style={s.cardTitle}>Pauta</Text>
@@ -77,12 +81,13 @@ export default function ReuniaoDetalhe() {
       )}
 
       <Card>
-        <Body>
-          ✅ <Text style={{ fontWeight: '700' }}>{meeting.goingCount ?? 0}</Text> morador(es) confirmaram presença
-        </Body>
+        <IconText icon="people" color={colors.text}>
+          <Text style={{ fontWeight: '700' }}>{meeting.goingCount ?? 0}</Text> morador(es) confirmaram presença
+        </IconText>
         {!isPast && (
           <Button
             label={going ? 'Cancelar minha presença' : 'Confirmar presença'}
+            icon={going ? 'close-circle-outline' : 'checkmark-circle-outline'}
             variant={going ? 'ghost' : 'primary'}
             onPress={togglePresenca}
             loading={busy}
@@ -92,7 +97,7 @@ export default function ReuniaoDetalhe() {
       </Card>
 
       <Card>
-        <Text style={s.cardTitle}>📄 Ata da reunião</Text>
+        <Text style={s.cardTitle}>Ata da reunião</Text>
         {minutes === null ? (
           <>
             <Body muted={!meeting.minutes}>{meeting.minutes || 'A ata ainda não foi publicada.'}</Body>

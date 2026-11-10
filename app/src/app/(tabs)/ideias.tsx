@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { collection, limit, orderBy, query } from 'firebase/firestore';
 import { useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { db } from '@/lib/firebase';
 import { useLiveQuery } from '@/lib/hooks';
 import { Suggestion, SUGGESTION_STATUS } from '@/lib/types';
@@ -11,7 +11,7 @@ import { colors, space } from '@/ui/theme';
 
 export default function Ideias() {
   const [sort, setSort] = useState<'voteCount' | 'createdAt'>('voteCount');
-  const { items, loading, error } = useLiveQuery<Suggestion>(
+  const { items, loading, error, refreshing, refresh } = useLiveQuery<Suggestion>(
     () => query(collection(db, 'suggestions'), orderBy(sort, 'desc'), limit(100)),
     [sort],
   );
@@ -21,6 +21,7 @@ export default function Ideias() {
       <FlatList
         data={loading ? [] : items}
         keyExtractor={(i) => i.id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[colors.primary]} />}
         contentContainerStyle={[s.screen, { paddingBottom: 100 }]}
         ListHeaderComponent={
           <>
@@ -35,7 +36,7 @@ export default function Ideias() {
             {loading && <Loading />}
           </>
         }
-        ListEmptyComponent={loading ? undefined : <Empty icon="💡" text="Nenhuma sugestão ainda. Seja o primeiro!" />}
+        ListEmptyComponent={loading ? undefined : <Empty icon="bulb-outline"text="Nenhuma sugestão ainda. Seja o primeiro!" />}
         renderItem={({ item }) => (
           <Card
             onPress={() => router.push({ pathname: '/ideia/[id]', params: { id: item.id } })}
@@ -53,7 +54,7 @@ export default function Ideias() {
         )}
       />
       <View style={s.fab}>
-        <Button label="+ Enviar sugestão" onPress={() => router.push('/ideia-nova')} />
+        <Button label="Enviar sugestão" icon="add-circle-outline" onPress={() => router.push('/ideia-nova')} />
       </View>
     </View>
   );

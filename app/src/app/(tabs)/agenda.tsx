@@ -1,20 +1,20 @@
 import { router } from 'expo-router';
 import { collection, limit, orderBy, query, Timestamp, where } from 'firebase/firestore';
 import { useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { useResident } from '@/lib/auth';
 import { db } from '@/lib/firebase';
 import { formatDate, weekday } from '@/lib/format';
 import { useLiveQuery } from '@/lib/hooks';
 import type { Meeting } from '@/lib/types';
-import { Body, Button, Card, Chip, Empty, ErrorBox, Loading, s } from '@/ui/components';
+import { Button, Card, Chip, Empty, ErrorBox, IconText, Loading, s } from '@/ui/components';
 import { colors } from '@/ui/theme';
 
 export default function Agenda() {
   const me = useResident();
   const [past, setPast] = useState(false);
 
-  const { items, loading, error } = useLiveQuery<Meeting>(() => {
+  const { items, loading, error, refreshing, refresh } = useLiveQuery<Meeting>(() => {
     const now = Timestamp.fromDate(new Date(Date.now() - 3 * 3600 * 1000));
     return past
       ? query(collection(db, 'meetings'), where('date', '<', now), orderBy('date', 'desc'), limit(30))
@@ -26,6 +26,7 @@ export default function Agenda() {
       <FlatList
         data={loading ? [] : items}
         keyExtractor={(i) => i.id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[colors.primary]} />}
         contentContainerStyle={[s.screen, me.role === 'admin' && { paddingBottom: 100 }]}
         ListHeaderComponent={
           <>
@@ -38,7 +39,9 @@ export default function Agenda() {
           </>
         }
         ListEmptyComponent={
-          loading ? undefined : <Empty icon="🗓️" text={past ? 'Nenhuma reunião anterior.' : 'Nenhuma reunião marcada.'} />
+          loading ? undefined : (
+            <Empty icon="calendar-outline" text={past ? 'Nenhuma reunião anterior.' : 'Nenhuma reunião marcada.'} />
+          )
         }
         renderItem={({ item }) => (
           <Card onPress={() => router.push({ pathname: '/reuniao/[id]', params: { id: item.id } })}>
@@ -46,16 +49,17 @@ export default function Agenda() {
               {weekday(item.date)}, {formatDate(item.date)}
             </Text>
             <Text style={s.cardTitle}>{item.title}</Text>
-            {!!item.location && <Body muted>📍 {item.location}</Body>}
-            <Text style={s.meta}>
-              ✅ {item.goingCount ?? 0} confirmado(s){item.minutes ? ' · 📄 ata disponível' : ''}
-            </Text>
+            {!!item.location && <IconText icon="location-outline">{item.location}</IconText>}
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+              <IconText icon="people-outline">{`${item.goingCount ?? 0} confirmado(s)`}</IconText>
+              {!!item.minutes && <IconText icon="document-text-outline">Ata</IconText>}
+            </View>
           </Card>
         )}
       />
       {me.role === 'admin' && (
         <View style={s.fab}>
-          <Button label="+ Marcar reunião" onPress={() => router.push('/reuniao-nova')} />
+          <Button label="Marcar reunião" icon="add-circle-outline" onPress={() => router.push('/reuniao-nova')} />
         </View>
       )}
     </View>

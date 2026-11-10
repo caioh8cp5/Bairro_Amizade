@@ -24,19 +24,25 @@ async function request<T>(method: string, path: string, body?: unknown, authed =
 
 export type Invite = {
   code: string;
-  name: string;
-  unit: string;
+  note: string;
   role: 'resident' | 'admin';
   used: boolean;
   createdAt: number | null;
 };
 
 export const api = {
-  register: (code: string, email: string, password: string) =>
-    request<{ ok: true }>('POST', '/register', { code, email, password }, false),
+  register: (data: {
+    code: string;
+    name: string;
+    unit: string;
+    email: string;
+    password: string;
+    acceptedTerms: boolean;
+  }) => request<{ ok: true }>('POST', '/register', data, false),
+  deleteMyAccount: () => request<{ ok: true }>('DELETE', '/me'),
   listInvites: () => request<Invite[]>('GET', '/invites'),
-  createInvite: (name: string, unit: string, role: 'resident' | 'admin') =>
-    request<{ code: string }>('POST', '/invites', { name, unit, role }),
+  createInvite: (role: 'resident' | 'admin', note = '') =>
+    request<{ code: string }>('POST', '/invites', { role, note }),
   deleteInvite: (code: string) => request<{ ok: true }>('DELETE', `/invites/${code}`),
   updateResident: (uid: string, change: { active?: boolean; role?: 'resident' | 'admin' }) =>
     request<{ ok: true }>('PATCH', `/residents/${uid}`, change),
