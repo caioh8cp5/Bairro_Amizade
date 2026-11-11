@@ -74,6 +74,15 @@ const authenticate =
 const requireUser = authenticate(false);
 const requireAdmin = authenticate(true);
 
+/** Grava no token de login se a pessoa é moradora ativa (lido pelas regras do Storage). */
+export async function setResidentClaims(uid: string, active: boolean, admin: boolean) {
+  await getAuth()
+    .setCustomUserClaims(uid, { resident: active, admin: active && admin })
+    .catch((e) => {
+      if ((e as { code?: string }).code !== 'auth/user-not-found') throw e;
+    });
+}
+
 const wrap =
   (fn: (req: AuthedRequest, res: Response) => Promise<unknown>) =>
   (req: AuthedRequest, res: Response, next: NextFunction) =>
@@ -141,6 +150,8 @@ app.post(
     });
     batch.update(inviteRef, { used: true, usedBy: uid, usedByName: name, usedAt: FieldValue.serverTimestamp() });
     await batch.commit();
+    // Já define a marca antes do primeiro login, para o token nascer com ela
+    await setResidentClaims(uid, true, invite.role === 'admin');
 
     res.status(201).json({ ok: true });
   }),
@@ -229,6 +240,18 @@ app.patch(
       await getAuth().updateUser(uid, { disabled: false });
     }
     res.json({ ok: true });
+  }),
+);
+
+/** Atualiza a marca "resident" do token (contas criadas antes dela existir). */
+app.post(
+  '/me/claims',
+  requireUser,
+  wrap(async (req, res) => {
+    const snap = await db().doc(`residents/${req.uid}`).get();
+    const active = snap.exists && snap.get('active') === true;
+    await setResidentClaims(req.uid!, active, snap.get('role') === 'admin');
+    res.json({ resident: active });
   }),
 );
 

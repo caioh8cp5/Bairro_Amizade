@@ -23,6 +23,7 @@ export default function NovaIdeia() {
         description: description.trim(),
         status: 'aberta',
         voteCount: 0,
+        downCount: 0,
         authorId: me.id,
         authorName: me.name,
         createdAt: serverTimestamp(),

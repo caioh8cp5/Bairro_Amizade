@@ -105,21 +105,24 @@ service cloud.firestore {
     match /suggestions/{id} {
       allow read: if isResident();
       allow create: if isResident() && isAuthor()
-        && request.resource.data.keys().hasOnly(['title', 'description', 'status', 'voteCount', 'authorId', 'authorName', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'description', 'status', 'voteCount', 'downCount', 'authorId', 'authorName', 'createdAt'])
         && str(request.resource.data.title, 3, 120)
         && str(request.resource.data.description, 0, 2000)
         && request.resource.data.status == 'aberta'
-        && request.resource.data.voteCount == 0;
+        && request.resource.data.voteCount == 0
+        && request.resource.data.get('downCount', 0) == 0;
       // só a administração muda o status (aberta / em análise / aprovada / recusada)
       allow update: if isAdmin() && onlyChanged(['status'])
         && request.resource.data.status in ['aberta', 'em_analise', 'aprovada', 'recusada'];
       allow delete: if isAdmin() || (isResident() && resource.data.authorId == request.auth.uid);
 
-      // Voto unitário: o id do documento é o uid, então cada morador vota uma vez
+      // Voto unitário: o id do documento é o uid, então cada morador vota uma vez.
+      // value: 1 = gostei, -1 = não gostei (pode trocar de opinião).
       match /votes/{uid} {
         allow read: if isResident();
-        allow create: if isResident() && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['createdAt'])
+        allow create, update: if isResident() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['createdAt', 'value'])
+          && request.resource.data.value in [1, -1]
           && request.resource.data.createdAt == request.time;
         allow delete: if isResident() && request.auth.uid == uid;
       }

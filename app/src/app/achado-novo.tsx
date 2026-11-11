@@ -6,11 +6,27 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useResident } from '@/lib/auth';
-import { db, storage } from '@/lib/firebase';
+import { api } from '@/lib/api';
+import { auth, db, storage } from '@/lib/firebase';
 import { errorMessage } from '@/lib/format';
 import { CATEGORIES, Category } from '@/lib/types';
 import { Button, Chip, ErrorBox, Field, s, Screen } from '@/ui/components';
 import { colors, space } from '@/ui/theme';
+
+/**
+ * Lê a foto do aparelho como Blob. No React Native, fetch(uri).blob() pode gerar
+ * um arquivo vazio no envio ao Firebase; o XMLHttpRequest é o método recomendado pelo Expo.
+ */
+function uriToBlob(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error('Não foi possível ler a foto.'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
 
 export default function NovoAchado() {
   const me = useResident();
@@ -45,9 +61,16 @@ export default function NovoAchado() {
       let photoUrl: string | null = null;
       let photoPath: string | null = null;
       if (photo) {
+        // O Storage confere a marca "resident" do token; contas antigas podem não ter
+        const token = await auth.currentUser!.getIdTokenResult();
+        if (token.claims.resident !== true) {
+          await api.syncClaims();
+          await auth.currentUser!.getIdToken(true);
+        }
         // A foto vai para o Cloud Storage; no Firestore fica só a URL
         photoPath = `lostFound/${me.id}/${Date.now()}.jpg`;
-        const blob = await (await fetch(photo)).blob();
+        const blob = await uriToBlob(photo);
+        if (!blob.size) throw new Error('Não foi possível ler a foto. Tente escolher de novo.');
         const r = ref(storage, photoPath);
         await uploadBytes(r, blob, { contentType: 'image/jpeg' });
         photoUrl = await getDownloadURL(r);

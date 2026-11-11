@@ -8,7 +8,7 @@ import {
   onDocumentDeleted,
   onDocumentWritten,
 } from 'firebase-functions/v2/firestore';
-import { app } from './api';
+import { app, setResidentClaims } from './api';
 import { buildKeywords } from './keywords';
 import { formatMeetingDate, notifyResidents, short } from './push';
 
@@ -21,13 +21,30 @@ export const api = onRequest(app);
 
 const db = () => getFirestore();
 
-/** Contadores mantidos no servidor para o app não conseguir fraudar votos. */
-export const onVoteCreated = onDocumentCreated('suggestions/{id}/votes/{uid}', (e) =>
-  db().doc(`suggestions/${e.params.id}`).update({ voteCount: FieldValue.increment(1) }).catch(() => null),
-);
-export const onVoteDeleted = onDocumentDeleted('suggestions/{id}/votes/{uid}', (e) =>
-  db().doc(`suggestions/${e.params.id}`).update({ voteCount: FieldValue.increment(-1) }).catch(() => null),
-);
+/**
+ * Contadores de votos mantidos no servidor para o app não conseguir fraudar.
+ * Cada voto vale 1 (gostei) ou -1 (não gostei); trocar de opinião move o voto.
+ */
+export const onVoteWritten = onDocumentWritten('suggestions/{id}/votes/{uid}', async (e) => {
+  const val = (snap: { exists: boolean; get: (f: string) => unknown } | undefined) =>
+    snap?.exists ? (snap.get('value') === -1 ? -1 : 1) : 0;
+  const before = val(e.data?.before);
+  const after = val(e.data?.after);
+  if (before === after) return;
+  const up = (after === 1 ? 1 : 0) - (before === 1 ? 1 : 0);
+  const down = (after === -1 ? 1 : 0) - (before === -1 ? 1 : 0);
+  await db()
+    .doc(`suggestions/${e.params.id}`)
+    .update({ voteCount: FieldValue.increment(up), downCount: FieldValue.increment(down) })
+    .catch(() => null);
+});
+
+/** Mantém a marca "resident" no token de login (usada pelas regras do Storage). */
+export const syncResidentClaims = onDocumentWritten('residents/{uid}', async (e) => {
+  const after = e.data?.after;
+  if (!after?.exists) return;
+  await setResidentClaims(e.params.uid, after.get('active') === true, after.get('role') === 'admin');
+});
 export const onRsvpCreated = onDocumentCreated('meetings/{id}/rsvps/{uid}', (e) =>
   db().doc(`meetings/${e.params.id}`).update({ goingCount: FieldValue.increment(1) }).catch(() => null),
 );

@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { useLiveQuery } from '@/lib/hooks';
 import { Suggestion, SUGGESTION_STATUS } from '@/lib/types';
 import { Body, Button, Card, Chip, Empty, ErrorBox, Loading, s } from '@/ui/components';
-import { VoteButton } from '@/ui/vote-button';
+import { VoteButtons } from '@/ui/vote-button';
 import { colors, space } from '@/ui/theme';
 
 export default function Ideias() {
@@ -41,7 +41,7 @@ export default function Ideias() {
           <Card
             onPress={() => router.push({ pathname: '/ideia/[id]', params: { id: item.id } })}
             style={{ flexDirection: 'row', gap: space(1.5), alignItems: 'center' }}>
-            <VoteButton suggestion={item} />
+            <VoteButtons suggestion={item} />
             <View style={{ flex: 1 }}>
               <Text style={s.cardTitle} numberOfLines={2}>
                 {item.title}

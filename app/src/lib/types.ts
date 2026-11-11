@@ -68,6 +68,7 @@ export type Suggestion = {
   description: string;
   status: SuggestionStatus;
   voteCount: number;
+  downCount?: number;
   authorId: string;
   authorName: string;
   createdAt: Timestamp | null;

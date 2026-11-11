@@ -40,6 +40,7 @@ export const api = {
     acceptedTerms: boolean;
   }) => request<{ ok: true }>('POST', '/register', data, false),
   deleteMyAccount: () => request<{ ok: true }>('DELETE', '/me'),
+  syncClaims: () => request<{ resident: boolean }>('POST', '/me/claims'),
   listInvites: () => request<Invite[]>('GET', '/invites'),
   createInvite: (role: 'resident' | 'admin', note = '') =>
     request<{ code: string }>('POST', '/invites', { role, note }),
