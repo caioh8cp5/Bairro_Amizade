@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
 import { Alert, Text } from 'react-native';
 import { useResident } from '@/lib/auth';
 import { db } from '@/lib/firebase';
@@ -14,6 +15,7 @@ export default function AchadoDetalhe() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useResident();
   const item = useLiveDoc<LostItem>(() => doc(db, 'lostFound', id), [id]);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   if (item === undefined) return <Loading />;
   if (item === null) return <Empty icon="file-tray-outline" text="Este item foi removido." />;
@@ -46,11 +48,12 @@ export default function AchadoDetalhe() {
 
   return (
     <Screen>
-      {item.photoUrl && (
+      {item.photoUrl && !photoFailed && (
         <Image
           source={{ uri: item.photoUrl }}
           style={{ width: '100%', aspectRatio: 1, borderRadius: 14, marginBottom: space(2) }}
           contentFit="cover"
+          onError={() => setPhotoFailed(true)}
           accessibilityLabel={`Foto: ${item.title}`}
         />
       )}

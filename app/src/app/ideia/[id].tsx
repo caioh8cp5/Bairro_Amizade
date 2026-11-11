@@ -7,7 +7,7 @@ import { errorMessage, formatDate } from '@/lib/format';
 import { useLiveDoc } from '@/lib/hooks';
 import { Suggestion, SUGGESTION_STATUS, SuggestionStatus } from '@/lib/types';
 import { Body, Button, Card, Chip, Empty, Loading, s, Screen, Title } from '@/ui/components';
-import { VoteButton } from '@/ui/vote-button';
+import { VoteButtons } from '@/ui/vote-button';
 import { space } from '@/ui/theme';
 
 export default function IdeiaDetalhe() {
@@ -43,11 +43,12 @@ export default function IdeiaDetalhe() {
 
   return (
     <Screen>
-      <View style={{ flexDirection: 'row', gap: space(2), alignItems: 'center', marginBottom: space(2) }}>
-        <VoteButton suggestion={item} large />
-        <View style={{ flex: 1 }}>
-          <Title>{item.title}</Title>
-        </View>
+      <Title>{item.title}</Title>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2), marginBottom: space(2) }}>
+        <VoteButtons suggestion={item} large direction="row" />
+        <Body muted style={{ flex: 1 }}>
+          Toque para votar. Tocar de novo retira o voto.
+        </Body>
       </View>
       <Body muted>
         {SUGGESTION_STATUS[item.status]} · por {item.authorName} em {formatDate(item.createdAt, false)}

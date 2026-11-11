@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { router, useLocalSearchParams } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
 import { errorMessage } from '@/lib/format';
-import { maskInviteCode } from '@/lib/share';
+import { findInviteCode, maskInviteCode } from '@/lib/share';
 import { Body, Button, ErrorBox, Field, s, Screen, Title } from '@/ui/components';
 import { colors, space } from '@/ui/theme';
 
 /** Primeiro acesso: o morador usa o código de convite e preenche os próprios dados. */
 export default function Cadastro() {
-  const [code, setCode] = useState('');
+  // Aberto pelo link do convite (champselysees://cadastro?code=CE-XXXX-XXXX) já vem preenchido
+  const params = useLocalSearchParams<{ code?: string }>();
+  const [code, setCode] = useState(() => (params.code ? (findInviteCode(params.code) ?? '') : ''));
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [email, setEmail] = useState('');
@@ -23,6 +26,15 @@ export default function Cadastro() {
   const [error, setError] = useState<string | null>(null);
 
   const codeComplete = code.length === 9; // XXXX-XXXX
+
+  /** Lê a área de transferência: serve tanto o código quanto a mensagem inteira do WhatsApp. */
+  async function colar() {
+    setError(null);
+    const text = await Clipboard.getStringAsync().catch(() => '');
+    const found = findInviteCode(text) ?? (maskInviteCode(text).length === 9 ? maskInviteCode(text) : null);
+    if (found) setCode(found);
+    else setError('Não encontrei um código de convite copiado. Copie a mensagem do convite e tente de novo.');
+  }
 
   async function cadastrar() {
     setError(null);
@@ -52,7 +64,8 @@ export default function Cadastro() {
       <Screen>
         <Title>Criar minha conta</Title>
         <Body muted style={{ marginBottom: space(3) }}>
-          Digite o código de convite que você recebeu da diretoria da associação. Cada código só pode ser usado uma vez.
+          Copie a mensagem de convite que você recebeu da diretoria e toque em &quot;Colar código&quot;, ou digite o código.
+          Cada código só pode ser usado uma vez.
         </Body>
         <ErrorBox text={error} />
 
@@ -68,10 +81,19 @@ export default function Cadastro() {
             autoCapitalize="characters"
             autoCorrect={false}
             autoComplete="off"
-            maxLength={12}
             style={{ flex: 1, fontSize: 22, fontWeight: '700', letterSpacing: 2, color: colors.text, paddingVertical: space(1.5) }}
           />
+          {codeComplete && <Ionicons name="checkmark-circle" size={26} color={colors.success} />}
         </View>
+        {!codeComplete && (
+          <Button
+            label="Colar código"
+            icon="clipboard-outline"
+            variant="secondary"
+            onPress={colar}
+            style={{ marginTop: -space(1), marginBottom: space(2) }}
+          />
+        )}
 
         <Field label="Seu nome" value={name} onChangeText={setName} autoComplete="name" maxLength={80} />
         <Field

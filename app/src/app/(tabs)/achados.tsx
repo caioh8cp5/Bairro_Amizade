@@ -30,6 +30,7 @@ const PAGE = 10;
  */
 export default function Achados() {
   const [category, setCategory] = useState<Category | null>(null);
+  const [kind, setKind] = useState<'perdido' | 'encontrado' | null>(null);
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [items, setItems] = useState<LostItem[]>([]);
@@ -56,6 +57,7 @@ export default function Achados() {
       setError(null);
       try {
         const c: QueryConstraint[] = [];
+        if (kind) c.push(where('kind', '==', kind));
         if (category) c.push(where('category', '==', category));
         if (term) c.push(where('keywords', 'array-contains', term));
         c.push(orderBy('createdAt', 'desc'));
@@ -76,7 +78,7 @@ export default function Achados() {
         }
       }
     },
-    [category, term],
+    [kind, category, term],
   );
 
   // Recarrega do zero quando o filtro muda ou a tela volta a ficar visível
@@ -125,8 +127,25 @@ export default function Achados() {
                 <Ionicons name="close-circle" size={22} color={colors.muted} onPress={() => setSearch('')} accessibilityLabel="Limpar busca" />
               )}
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Chip label="Tudo" selected={!kind} onPress={() => setKind(null)} color={colors.accent} />
+              <Chip
+                label="Perdidos"
+                icon="help-circle-outline"
+                selected={kind === 'perdido'}
+                onPress={() => setKind('perdido')}
+                color={colors.accent}
+              />
+              <Chip
+                label="Encontrados"
+                icon="hand-left-outline"
+                selected={kind === 'encontrado'}
+                onPress={() => setKind('encontrado')}
+                color={colors.accent}
+              />
+            </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: space(1) }}>
-              <Chip label="Todos" selected={!category} onPress={() => setCategory(null)} />
+              <Chip label="Todas" selected={!category} onPress={() => setCategory(null)} />
               {CATEGORIES.map((c) => (
                 <Chip
                   key={c.key}
@@ -142,7 +161,7 @@ export default function Achados() {
         }
         ListEmptyComponent={
           loading ? undefined : (
-            <Empty icon="file-tray-outline" text={term || category ? 'Nada encontrado com esse filtro.' : 'Nenhum item cadastrado.'} />
+            <Empty icon="file-tray-outline" text={term || category || kind ? 'Nada encontrado com esse filtro.' : 'Nenhum item cadastrado.'} />
           )
         }
         ListFooterComponent={loading ? <ActivityIndicator color={colors.primary} style={{ margin: space(2) }} /> : undefined}
@@ -158,12 +177,18 @@ export default function Achados() {
 function ItemCard({ item }: { item: LostItem }) {
   const cat = CATEGORIES.find((c) => c.key === item.category);
   const devolvido = item.status === 'devolvido';
+  const [photoFailed, setPhotoFailed] = useState(false);
   return (
     <Card
       onPress={() => router.push({ pathname: '/achado/[id]', params: { id: item.id } })}
       style={[{ flexDirection: 'row', gap: space(1.5) }, devolvido && { opacity: 0.6 }]}>
-      {item.photoUrl ? (
-        <Image source={{ uri: item.photoUrl }} style={{ width: 84, height: 84, borderRadius: 10 }} contentFit="cover" />
+      {item.photoUrl && !photoFailed ? (
+        <Image
+          source={{ uri: item.photoUrl }}
+          style={{ width: 84, height: 84, borderRadius: 10 }}
+          contentFit="cover"
+          onError={() => setPhotoFailed(true)}
+        />
       ) : (
         <View
           style={{

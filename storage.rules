@@ -1,13 +1,12 @@
 rules_version = '2';
 
 // Fotos do mural de Achados e Perdidos.
-// Só moradores ativos na whitelist (coleção "residents" do Firestore) acessam.
+// Só moradores ativos na whitelist acessam. A marca "resident" vem no token
+// de login (custom claim) e é mantida pelo servidor a partir de residents/{uid}.
 service firebase.storage {
   match /b/{bucket}/o {
     function isResident() {
-      return request.auth != null
-        && firestore.exists(/databases/(default)/documents/residents/$(request.auth.uid))
-        && firestore.get(/databases/(default)/documents/residents/$(request.auth.uid)).data.active == true;
+      return request.auth != null && request.auth.token.resident == true;
     }
 
     match /lostFound/{uid}/{fileName} {

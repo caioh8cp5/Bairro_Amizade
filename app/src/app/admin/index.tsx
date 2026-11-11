@@ -1,7 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { api, Invite } from '@/lib/api';
 import { shareInvite } from '@/lib/share';
 import { useResident } from '@/lib/auth';
@@ -81,9 +83,21 @@ export default function Admin() {
               {inv.role === 'admin' && (
                 <Badge label="ADMIN" icon="shield-checkmark" color={colors.primary} bg={colors.primaryLight} />
               )}
-              <Text selectable style={{ fontSize: 24, fontWeight: '800', letterSpacing: 2 }}>
-                {inv.code}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text selectable style={{ fontSize: 24, fontWeight: '800', letterSpacing: 2 }}>
+                  {inv.code}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Copiar código"
+                  hitSlop={12}
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(inv.code);
+                    Alert.alert('Copiado', `${inv.code} copiado. Cole numa mensagem para o morador.`);
+                  }}>
+                  <Ionicons name="copy-outline" size={26} color={colors.primary} />
+                </Pressable>
+              </View>
               {!!inv.note && <IconText icon="document-text-outline">{inv.note}</IconText>}
               <View style={{ flexDirection: 'row', gap: space(1), marginTop: space(1) }}>
                 <Button

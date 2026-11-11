@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -13,6 +14,7 @@ export default function NovoConvite() {
   const [role, setRole] = useState<'resident' | 'admin'>('resident');
   const [note, setNote] = useState('');
   const [code, setCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,12 +46,22 @@ export default function NovoConvite() {
         </Card>
         <Button label="Compartilhar (WhatsApp, SMS...)" icon="share-social-outline" onPress={() => shareInvite(code)} />
         <Button
+          label={copied ? 'Código copiado!' : 'Copiar só o código'}
+          icon={copied ? 'checkmark' : 'copy-outline'}
+          variant="secondary"
+          onPress={async () => {
+            await Clipboard.setStringAsync(code);
+            setCopied(true);
+          }}
+        />
+        <Button
           label="Gerar outro"
           icon="add"
           variant="secondary"
           onPress={() => {
             setCode(null);
             setNote('');
+            setCopied(false);
           }}
         />
         <Button label="Concluir" variant="ghost" onPress={() => router.back()} />
