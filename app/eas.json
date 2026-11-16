@@ -15,14 +15,12 @@
     "preview": {
       "extends": "base",
       "distribution": "internal",
-      "channel": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "extends": "base",
-      "channel": "production",
       "android": {
         "buildType": "app-bundle"
       }
