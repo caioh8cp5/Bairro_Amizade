@@ -63,37 +63,28 @@ Bairro_Amizade/
 4. A API (`POST /register`) valida o código numa transação (uso único), cria a conta e o perfil em `residents/{uid}` com `active: true`.
 5. As **Firebase Security Rules** só liberam leitura/escrita se `residents/{uid}` existir com `active == true`. Se o admin bloquear o morador, a API desativa a conta e derruba a sessão.
 
-## Configuração do Firebase (feita uma vez)
+## Como rodar na sua máquina
 
-1. Acesse https://console.firebase.google.com e clique em **Criar projeto** (ex.: `champs-elysees`). Pode desativar o Google Analytics.
-2. **Plano Blaze**: no canto inferior esquerdo, *Upgrade* → Blaze. Depois, no Google Cloud Console → *Faturamento → Orçamentos e alertas*, crie um alerta (ex.: R$ 10). Para o uso de um bairro, o consumo deve ficar dentro da cota gratuita.
-3. **Authentication** → *Vamos começar* → ative **E-mail/senha**.
-4. **Firestore Database** → *Criar banco de dados* → modo **produção** → local **`southamerica-east1 (São Paulo)`**.
-5. **Storage** → *Vamos começar* → modo produção → mesma região.
-6. **Configurações do projeto** (engrenagem) → *Seus apps* → ícone **Web `</>`** → registre o app (ex.: "app-moradores"). Copie os valores do `firebaseConfig`.
-7. Em `app/`, copie `.env.example` para `.env` e cole os valores.
+### Pré-requisitos
 
-### Publicar regras, índices e a API
+- [Node.js](https://nodejs.org/) 22
+- [Git](https://git-scm.com/)
+- Celular Android com o app **Expo Go** (Play Store), na mesma rede Wi-Fi do computador
+- Para rodar os testes do back-end: [Java 21](https://adoptium.net/) e o Firebase CLI (`npm install -g firebase-tools`)
+
+### 1. Baixar o projeto
 
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase use --add
-firebase deploy
+git clone https://github.com/caioh8cp5/Bairro_Amizade.git
+cd Bairro_Amizade
 ```
 
-Isso publica `firestore.rules`, `storage.rules`, os índices e as Cloud Functions (API Express + gatilhos de votos/presenças/busca).
+### 2. Configurar o acesso ao Firebase
 
-### Criar o primeiro administrador
+Em `app/`, copie `.env.example` para `.env` e preencha com os dados do app Web do projeto Firebase
+(Console do Firebase → Configurações do projeto → Seus apps).
 
-Como só admins geram convites, o primeiro convite é criado à mão:
-
-1. Firestore → **Iniciar coleção** → ID `invites`.
-2. ID do documento: `CE-ADMN-0001`
-3. Campos: `name` (string) = seu nome · `unit` (string) = seu endereço · `role` (string) = `admin` · `used` (boolean) = `false`
-4. No app, use **Primeiro acesso com convite** com o código `CE-ADMN-0001`.
-
-## Rodar o app no celular (desenvolvimento)
+### 3. Rodar o aplicativo
 
 ```bash
 cd app
@@ -101,16 +92,17 @@ npm install
 npx expo start
 ```
 
-Instale o **Expo Go** no Android e leia o QR code. (Se algum recurso nativo não abrir no Expo Go, gere um build de desenvolvimento com `npx eas-cli@latest build --profile development --platform android`.)
+Abra o **Expo Go** no celular e leia o QR code que aparece no terminal. Para parar, use `Ctrl + C`.
 
-## Publicar na Google Play
+### 4. Rodar os testes do back-end
 
-1. Crie uma conta em https://expo.dev (gratuita) e rode `npx eas-cli@latest login` e `npx eas-cli@latest build:configure` dentro de `app/`.
-2. Gere o pacote: `npx eas-cli@latest build --platform android --profile production` (gera um `.aab` na nuvem, sem precisar de Android Studio).
-3. Crie a conta de desenvolvedor no Google Play Console (taxa única de US$ 25).
-4. **Atenção:** contas pessoais novas precisam fazer um **teste fechado com pelo menos 12 testadores por 14 dias seguidos** antes de liberar para produção. Isso casa bem com a etapa de testes com moradores (SUS) do cronograma.
-5. A Play Store exige uma **Política de Privacidade** (URL pública) e o formulário de *Segurança dos dados* — o app coleta nome, e-mail, endereço e fotos.
-6. Como o app é fechado por convite, informe na revisão do Google um **código de convite de teste** para o revisor conseguir entrar.
+```bash
+cd functions
+npm install
+npm test
+```
+
+Os testes rodam nos emuladores do Firebase (nenhum dado real é usado) e mostram o relatório de cobertura ao final.
 
 ## Requisitos do TCC atendidos
 
