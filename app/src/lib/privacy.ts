@@ -19,6 +19,8 @@ export const PRIVACY_SECTIONS: { title: string; body: string }[] = [
       '• Cadastro: nome, endereço (rua e número), e-mail e, se você quiser, telefone.\n' +
       '• Conteúdo que você publica: itens de achados e perdidos (texto e foto), sugestões, votos e confirmações de presença.\n' +
       '• Dados técnicos: identificador da conta e, se você permitir, um código do aparelho para receber notificações.\n' +
+      '• Relatórios de erro do app (Firebase Crashlytics) e estatística das telas mais usadas (Firebase Analytics), ' +
+      'ligados apenas ao identificador interno da conta, sem nome ou e-mail.\n' +
       'Não coletamos localização, contatos nem dados de pagamento.',
   },
   {
@@ -33,7 +35,8 @@ export const PRIVACY_SECTIONS: { title: string; body: string }[] = [
     body:
       'Somente moradores com acesso ativo veem o conteúdo do app. Seu nome aparece junto ao que você publica; seu endereço e ' +
       'e-mail aparecem apenas para a diretoria (administradores). Os dados ficam armazenados no Google Firebase, em servidores ' +
-      'localizados em São Paulo (Brasil). As notificações são entregues pelo serviço de push do Expo e do Google. ' +
+      'localizados em São Paulo (Brasil). As notificações são entregues pelo Firebase Cloud Messaging, do Google, que ' +
+      'também processa os relatórios de erro e as estatísticas de uso. ' +
       'Não vendemos nem compartilhamos dados com terceiros para publicidade.',
   },
   {

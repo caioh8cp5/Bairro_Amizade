@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
-import { Href, router, Stack } from 'expo-router';
+import { ErrorBoundaryProps, Href, router, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { AuthProvider, logout, useAuth } from '@/lib/auth';
 import { firebaseConfigured } from '@/lib/firebase';
+import { identifyUser, reportError, trackScreen } from '@/lib/monitoring';
 import { pushSupported, registerForPush } from '@/lib/notifications';
 import { Body, Button, Loading, s, Title } from '@/ui/components';
 import { colors, font } from '@/ui/theme';
@@ -80,8 +81,15 @@ function PushSetup() {
   const uid = state.status === 'ready' ? state.user.uid : null;
 
   useEffect(() => {
-    if (uid) registerForPush(uid).catch((e) => console.warn('Push não registrado', e));
+    identifyUser(uid);
+    if (uid) registerForPush(uid).catch((e) => reportError(e, 'registro de notificações'));
   }, [uid]);
+
+  // Estatística de uso: qual tela foi aberta
+  const pathname = usePathname();
+  useEffect(() => {
+    trackScreen(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     if (!uid || !pushSupported) return;
@@ -93,6 +101,21 @@ function PushSetup() {
   }, [uid]);
 
   return null;
+}
+
+/** Tela exibida se alguma tela quebrar; o erro vai para o Crashlytics. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => reportError(error, 'tela quebrou'), [error]);
+  return (
+    <View style={[s.center, { backgroundColor: colors.bg }]}>
+      <Ionicons name="alert-circle" size={56} color={colors.danger} style={{ marginBottom: 12 }} />
+      <Title>Algo deu errado</Title>
+      <Body muted style={{ textAlign: 'center', marginBottom: 24 }}>
+        O problema foi registrado automaticamente. Tente de novo.
+      </Body>
+      <Button label="Tentar de novo" icon="refresh" onPress={retry} style={{ alignSelf: 'stretch' }} />
+    </View>
+  );
 }
 
 export default function RootLayout() {

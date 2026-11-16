@@ -1,24 +1,29 @@
 import { formatMeetingDate, notifyResidents, short } from '../src/push';
 import { db, resetEmulators } from './helpers';
 
-const realFetch = global.fetch;
-let sent: { to: string; title: string; body: string; data: { url: string } }[][];
+type Multicast = { tokens: string[]; notification: { title: string; body: string }; data: { url: string } };
+type Resp = { success: boolean; error?: { code: string; message: string } };
+
+// O envio real passa pelo Firebase Cloud Messaging; nos testes ele é simulado
+const mockSent: Multicast[] = [];
+let mockRespond: (token: string) => Resp = () => ({ success: true });
+
+jest.mock('firebase-admin/messaging', () => ({
+  getMessaging: () => ({
+    sendEachForMulticast: async (msg: Multicast) => {
+      mockSent.push(msg);
+      const responses = msg.tokens.map((t) => mockRespond(t));
+      return { successCount: responses.filter((r) => r.success).length, responses };
+    },
+  }),
+}));
+
+const token = (n: string | number) => `fcm-token-${String(n).padEnd(20, 'x')}`;
 
 beforeEach(async () => {
   await resetEmulators();
-  sent = [];
-  // Intercepta só o serviço de push do Expo; o resto (emuladores) segue normal
-  global.fetch = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
-    if (String(url).startsWith('https://exp.host')) {
-      sent.push(JSON.parse(String(init?.body)));
-      return new Response('{"data":[]}', { status: 200 });
-    }
-    return realFetch(url, init);
-  }) as typeof fetch;
-});
-
-afterEach(() => {
-  global.fetch = realFetch;
+  mockSent.length = 0;
+  mockRespond = () => ({ success: true });
 });
 
 async function addResident(id: string, data: Record<string, unknown>) {
@@ -26,43 +31,58 @@ async function addResident(id: string, data: Record<string, unknown>) {
 }
 
 describe('notifyResidents', () => {
-  it('envia só para moradores ativos com token válido, sem o autor e sem repetir', async () => {
-    await addResident('a', { pushToken: 'ExponentPushToken[AAA]' });
-    await addResident('b', { pushToken: 'ExponentPushToken[BBB]' });
-    await addResident('c', { pushToken: 'ExponentPushToken[AAA]' }); // mesmo aparelho
-    await addResident('bloqueado', { active: false, pushToken: 'ExponentPushToken[CCC]' });
+  it('envia só para moradores ativos com token válido, sem o autor e sem repetir aparelho', async () => {
+    await addResident('a', { pushToken: token('A') });
+    await addResident('b', { pushToken: token('B') });
+    await addResident('c', { pushToken: token('A') }); // mesmo aparelho de "a"
+    await addResident('bloqueado', { active: false, pushToken: token('C') });
     await addResident('sem-token', { pushToken: null });
-    await addResident('lixo', { pushToken: 'qualquer-coisa' });
-    await addResident('autor', { pushToken: 'ExponentPushToken[DDD]' });
+    await addResident('lixo', { pushToken: 'curto' });
+    await addResident('autor', { pushToken: token('D') });
 
     const total = await notifyResidents({ title: 'T', body: 'B', url: '/', exceptUid: 'autor' });
 
     expect(total).toBe(2);
-    expect(sent).toHaveLength(1);
-    expect(sent[0].map((m) => m.to).sort()).toEqual(['ExponentPushToken[AAA]', 'ExponentPushToken[BBB]']);
-    expect(sent[0][0]).toMatchObject({ title: 'T', body: 'B', data: { url: '/' } });
+    expect(mockSent).toHaveLength(1);
+    expect(mockSent[0].tokens.sort()).toEqual([token('A'), token('B')]);
+    expect(mockSent[0]).toMatchObject({ notification: { title: 'T', body: 'B' }, data: { url: '/' } });
   });
 
-  it('divide em lotes de 100 mensagens', async () => {
-    await Promise.all(
-      Array.from({ length: 150 }, (_, i) => addResident(`m${i}`, { pushToken: `ExponentPushToken[${i}]` })),
-    );
+  it('divide em lotes de 500 aparelhos', async () => {
+    await Promise.all(Array.from({ length: 520 }, (_, i) => addResident(`m${i}`, { pushToken: token(i) })));
     await notifyResidents({ title: 'T', body: 'B', url: '/' });
-    expect(sent.map((lote) => lote.length)).toEqual([100, 50]);
+    expect(mockSent.map((lote) => lote.tokens.length)).toEqual([500, 20]);
   });
 
-  it('não chama o serviço quando ninguém tem token', async () => {
+  it('não chama o FCM quando ninguém tem token', async () => {
     await addResident('a', {});
     expect(await notifyResidents({ title: 'T', body: 'B', url: '/' })).toBe(0);
-    expect(sent).toHaveLength(0);
+    expect(mockSent).toHaveLength(0);
   });
 
-  it('registra erro sem quebrar quando o serviço de push falha', async () => {
-    await addResident('a', { pushToken: 'ExponentPushToken[AAA]' });
+  it('apaga tokens de aparelhos que não existem mais e mantém os outros', async () => {
+    await addResident('a', { pushToken: token('velho') });
+    await addResident('b', { pushToken: token('velho') });
+    await addResident('c', { pushToken: token('bom') });
+    mockRespond = (t) =>
+      t === token('velho')
+        ? { success: false, error: { code: 'messaging/registration-token-not-registered', message: 'x' } }
+        : { success: true };
+
+    expect(await notifyResidents({ title: 'T', body: 'B', url: '/' })).toBe(1);
+    expect((await db().doc('residents/a').get()).get('pushToken')).toBeNull();
+    expect((await db().doc('residents/b').get()).get('pushToken')).toBeNull();
+    expect((await db().doc('residents/c').get()).get('pushToken')).toBe(token('bom'));
+  });
+
+  it('registra outras falhas sem apagar o token', async () => {
+    await addResident('a', { pushToken: token('A') });
+    mockRespond = () => ({ success: false, error: { code: 'messaging/internal-error', message: 'fora do ar' } });
     const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    global.fetch = jest.fn(async () => new Response('erro', { status: 500 })) as typeof fetch;
-    await expect(notifyResidents({ title: 'T', body: 'B', url: '/' })).resolves.toBe(1);
+
+    expect(await notifyResidents({ title: 'T', body: 'B', url: '/' })).toBe(0);
     expect(spy).toHaveBeenCalled();
+    expect((await db().doc('residents/a').get()).get('pushToken')).toBe(token('A'));
     spy.mockRestore();
   });
 });
