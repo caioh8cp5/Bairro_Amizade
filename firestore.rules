@@ -41,7 +41,7 @@ service cloud.firestore {
         && str(request.resource.data.name, 2, 80)
         && str(request.resource.data.unit, 2, 80)
         && (request.resource.data.get('pushToken', null) == null
-            || str(request.resource.data.pushToken, 10, 200));
+            || str(request.resource.data.pushToken, 10, 4096));
       allow create, delete: if false; // somente via API
     }
 

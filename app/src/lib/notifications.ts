@@ -16,20 +16,20 @@ Notifications.setNotificationHandler({
   }),
 });
 
-/** No Expo Go do Android o push remoto não existe; só funciona no app instalado (build EAS). */
+/**
+ * Push só no Android instalado (build EAS): no Expo Go o push remoto não existe,
+ * e no iPhone exigiria a conta de desenvolvedor da Apple.
+ */
 export const pushSupported =
-  Platform.OS !== 'web' && Device.isDevice && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
-
-function projectId(): string | undefined {
-  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-}
+  Platform.OS === 'android' && Device.isDevice && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 
 /**
- * Pede permissão e salva o token de push do aparelho no perfil do morador.
- * As Cloud Functions usam esse token para avisar sobre comunicados e reuniões.
+ * Pede permissão e salva o token FCM do aparelho no perfil do morador.
+ * As Cloud Functions usam esse token para enviar, pelo Firebase Cloud Messaging,
+ * os avisos de comunicados e reuniões.
  */
 export async function registerForPush(uid: string): Promise<void> {
-  if (!pushSupported || !projectId()) return;
+  if (!pushSupported) return;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Avisos da associação',
@@ -40,7 +40,7 @@ export async function registerForPush(uid: string): Promise<void> {
   if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return;
 
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
+  const token = (await Notifications.getDevicePushTokenAsync()).data as string;
   await updateDoc(doc(db, 'residents', uid), { pushToken: token });
 }
 

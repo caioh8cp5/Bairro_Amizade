@@ -19,6 +19,7 @@
 <li><strong>Cadastro:</strong> nome, endereço (rua e número), e-mail e, se você quiser, telefone.</li>
 <li><strong>Conteúdo que você publica:</strong> itens de achados e perdidos (texto e foto), sugestões, votos e confirmações de presença.</li>
 <li><strong>Dados técnicos:</strong> identificador da conta e, se você permitir, um código do aparelho para receber notificações.</li>
+<li><strong>Relatórios de erro e uso:</strong> falhas do app (Firebase Crashlytics) e estatística das telas mais usadas (Firebase Analytics), ligados apenas ao identificador interno da conta, sem nome ou e-mail.</li>
 </ul>
 <p>Não coletamos localização, contatos nem dados de pagamento.</p>
 
@@ -26,7 +27,7 @@
 <p>Para confirmar que você é morador (lista de permissões), mostrar comunicados, reuniões, achados e perdidos e sugestões aos demais moradores, contar votos e presenças sem duplicidade e enviar avisos da associação. A base legal é o seu consentimento e o legítimo interesse da associação na comunicação com os moradores.</p>
 
 <h2>Quem pode ver</h2>
-<p>Somente moradores com acesso ativo veem o conteúdo do app. Seu nome aparece junto ao que você publica; seu endereço e e-mail aparecem apenas para a diretoria (administradores). Os dados ficam armazenados no Google Firebase, em servidores localizados em São Paulo (Brasil). As notificações são entregues pelo serviço de push do Expo e do Google. Não vendemos nem compartilhamos dados com terceiros para publicidade.</p>
+<p>Somente moradores com acesso ativo veem o conteúdo do app. Seu nome aparece junto ao que você publica; seu endereço e e-mail aparecem apenas para a diretoria (administradores). Os dados ficam armazenados no Google Firebase, em servidores localizados em São Paulo (Brasil). As notificações são entregues pelo Firebase Cloud Messaging, do Google, que também processa os relatórios de erro e as estatísticas de uso. Não vendemos nem compartilhamos dados com terceiros para publicidade.</p>
 
 <h2>Por quanto tempo guardamos</h2>
 <p>Enquanto sua conta estiver ativa. Ao excluir a conta, apagamos seu cadastro, login, itens do mural (com fotos), votos e presenças. Sugestões e comunicados que você publicou permanecem, mas sem o seu nome.</p>

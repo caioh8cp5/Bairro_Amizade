@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "924866517800",
+    "project_id": "champs-elysees-64bb8",
+    "storage_bucket": "champs-elysees-64bb8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924866517800:android:14d6d88f909e1307ea4e1d",
+        "android_client_info": {
+          "package_name": "br.com.champselysees.moradores"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASt2jmF_CwQ_nZlpDNYWKXo5udYWCTsag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

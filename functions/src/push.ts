@@ -1,35 +1,58 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
+
+/** O FCM aceita no máximo 500 aparelhos por envio. */
+const BATCH = 500;
+
+/** Erros que indicam que o token não vale mais (app desinstalado, dados apagados...). */
+const DEAD_TOKEN_ERRORS = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
+]);
 
 /**
  * Envia notificações push para todos os moradores ativos que autorizaram,
- * usando o serviço de push do Expo (que entrega via Firebase Cloud Messaging).
+ * pelo Firebase Cloud Messaging (FCM). Tokens que deixaram de valer são
+ * removidos do perfil para não tentar de novo.
+ * Retorna quantos aparelhos receberam o envio.
  */
 export async function notifyResidents(opts: { title: string; body: string; url: string; exceptUid?: string }) {
   const snap = await getFirestore().collection('residents').where('active', '==', true).get();
-  const tokens = snap.docs
-    .filter((d) => d.id !== opts.exceptUid)
-    .map((d) => d.get('pushToken'))
-    .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'));
 
-  const unique = [...new Set(tokens)];
-  for (let i = 0; i < unique.length; i += 100) {
-    const messages = unique.slice(i, i + 100).map((to) => ({
-      to,
-      title: opts.title,
-      body: opts.body,
-      sound: 'default',
-      priority: 'high',
-      channelId: 'default',
-      data: { url: opts.url },
-    }));
-    const res = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(messages),
-    });
-    if (!res.ok) console.error('Falha ao enviar push', res.status, await res.text());
+  // token -> perfis que usam esse aparelho (o mesmo celular pode ter sido usado por duas contas)
+  const owners = new Map<string, string[]>();
+  for (const d of snap.docs) {
+    const token = d.get('pushToken');
+    if (d.id === opts.exceptUid || typeof token !== 'string' || token.length < 20) continue;
+    owners.set(token, [...(owners.get(token) ?? []), d.id]);
   }
-  return unique.length;
+  const tokens = [...owners.keys()];
+
+  let delivered = 0;
+  for (let i = 0; i < tokens.length; i += BATCH) {
+    const batch = tokens.slice(i, i + BATCH);
+    const res = await getMessaging().sendEachForMulticast({
+      tokens: batch,
+      notification: { title: opts.title, body: opts.body },
+      data: { url: opts.url },
+      android: { priority: 'high', notification: { channelId: 'default', sound: 'default' } },
+    });
+    delivered += res.successCount;
+
+    const dead: string[] = [];
+    res.responses.forEach((r, idx) => {
+      if (r.success) return;
+      if (r.error && DEAD_TOKEN_ERRORS.has(r.error.code)) dead.push(batch[idx]);
+      else console.error('Falha ao enviar push', r.error?.code, r.error?.message);
+    });
+    await Promise.all(
+      dead.flatMap((t) =>
+        (owners.get(t) ?? []).map((uid) => getFirestore().doc(`residents/${uid}`).update({ pushToken: null })),
+      ),
+    );
+  }
+  return delivered;
 }
 
 export function short(text: string, max = 140) {
